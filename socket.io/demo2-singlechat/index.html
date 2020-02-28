@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>test-single-chat</title>
+</head>
+<body>
+    <h1>聊天室    <p></p></h1>
+    输入您的名称：<input type="text" id="name"/>
+    <button type="button" id="login">登入</button><br>
+
+    <button type="button">群聊</button>
+    <button type="button">单聊</button>
+
+    
+
+
+
+    
+</body>
+<script src="/socket.io/socket.io.js"></script>
+<script src="https://cdn.bootcss.com/jquery/3.4.1/jquery.min.js"></script>
+<script>
+    $(function() {
+        $('#login').click(function() {
+            var name = $('#name').val();
+            if(name == '') {
+                alert('请输入名称');
+            }else{
+                $('p').text('欢迎您： ' + name);
+                $('#name').attr("readonly",true);
+            }
+        });
+    });
+</script>
+</html>

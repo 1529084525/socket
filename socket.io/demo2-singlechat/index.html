@@ -62,7 +62,7 @@
                         <h5>名称：{{room.name}}</h5>
                         <div style="height: 100%;">
                             <ul>
-                                <li v-for='(msg) in room.li'><span :class="{'active'}">{{msg.msg}}</span><div style="clear: both;"></div></li>
+                                <li v-for='(msg) in room.li'><span :class="msg.username == username ? 'right' : 'left'">{{msg.msg}}</span><div style="clear: both;"></div></li>
                             </ul>
                         </div>
                         <div style="height: 100px;width: 100%; position: absolute; bottom: 0;">
@@ -99,6 +99,13 @@
         beforeMount() {
             this.socket.on('user joined', (user, index) => {
                 this.users.push(user);
+                if(this.rooms.filter(f => f.name == user).length == 0) {
+                    this.rooms.push({name: user, content: '', li: []});
+                }
+            })
+
+            this.socket.on('user left', (res) => {
+                this.users.splice(this.users.indexOf(res), 1);
             })
         },
         methods: {
@@ -123,8 +130,9 @@
                     });
 
                     //获取私聊
-                    this.socket.on('receive private message', (msg) => {
-                        console.log( 'receive' + msg);
+                    this.socket.on('receive private message', (res) => {
+                        
+                        this.rooms.filter(f => f.name == res.username)[0].li.push(res);
                     })
 
                     //获取群聊this
@@ -142,10 +150,7 @@
                 var yname = event.target.innerText.trim();
 
                 if(this.rooms.filter(f => f.name == yname).length == 0) {
-                    this.rooms.push({
-                        name: yname,
-                        content: ''
-                    });
+                    this.rooms.push({name: yname, content: '',  li: []});
                 }
 
                 this.show(yname);
@@ -164,10 +169,12 @@
             send(room) {
                 var content = room.content;
                 if(room.type == 1) {
-                    this.socket.emit('send public message', {name: room.name, msg: room.content});
+                    this.socket.emit('send public message', {name: room.name, msg: room.content, username: this.username});
                 }else{
                     //发送私聊
-                    this.socket.emit('send private message', {name: room.name, msg: room.content})
+                    this.socket.emit('send private message', {name: room.name, msg: room.content, username: this.username});
+
+                    this.rooms.filter(f => f.name == room.name)[0].li.push({name: room.name, msg: room.content, username: this.username});
                 }
                 room.content = '';//清空
             }

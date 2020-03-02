@@ -32,7 +32,7 @@ io.on('connection', (socket) => {
     })
 
     socket.on('send private message', function(res){
-        usocket[res.name].emit('receive private message', res.msg);
+        usocket[res.name].emit('receive private message', res);
     });
     
     socket.on('send public message', (res) => {

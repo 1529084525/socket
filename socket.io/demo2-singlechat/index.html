@@ -5,34 +5,174 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="X-UA-Compatible" content="ie=edge">
     <title>test-single-chat</title>
+    <link rel="stylesheet" href="/el.css">
+    <link rel="stylesheet" href="/base.css">
+    <style>
+        #left li{
+            list-style-type: none;
+            border: hotpink 1px solid;
+            cursor: pointer;    
+
+        }
+        .active {
+            background-color: gainsboro;
+        }
+
+        #chat li{
+            list-style-type: none;
+            display: block;
+        }
+
+        #chat span.left {
+            float: left;
+        }
+
+        #chat span.right {
+            float: right;
+        }
+    </style>
 </head>
 <body>
-    <h1>聊天室    <p></p></h1>
-    输入您的名称：<input type="text" id="name"/>
-    <button type="button" id="login">登入</button><br>
-
-    <button type="button">群聊</button>
-    <button type="button">单聊</button>
-
-    
-
-
-
-    
+<div id="app">
+    <el-container>
+        <el-header style="border: 1px red solid;">
+            <h1>欢迎来到聊天室 {{username}}</h1>
+        </el-header>
+        <el-container>
+            <el-aside width="300px" style="border: 1px gray solid; height: 700px;">
+                <ul id='left'>
+                    <!-- 群聊 -->
+                    <li >
+                        <div @click='clickLeft($event)' class="tab">
+                            <el-avatar></el-avatar>群聊
+                            
+                        </div>
+                    </li>
+                    <li v-for='(item ) in users' >
+                        <div @click='clickLeft($event)' class="tab">
+                            <el-avatar src="https://cube.elemecdn.com/0/88/03b0d39583f48206768a7534e55bcpng.png"></el-avatar>
+                            {{item}}
+                        </div>
+                    </li>
+                </ul>
+            </el-aside>
+            <el-main style="border: 1px yellow solid;">
+                <div id="chat" style="height: 100%;position: relative;">
+                    <div v-for='(room) in rooms' v-show='room.show'>
+                        <h5>名称：{{room.name}}</h5>
+                        <div style="height: 100%;">
+                            <ul>
+                                <li v-for='(msg) in room.li'><span :class="{'active'}">{{msg.msg}}</span><div style="clear: both;"></div></li>
+                            </ul>
+                        </div>
+                        <div style="height: 100px;width: 100%; position: absolute; bottom: 0;">
+                            <el-input type="textarea" :rows="2" placeholder="请输入内容" v-model='room.content'> </el-input>
+                            <el-button style="float: right;" @click='send(room)' >发送</el-button>
+                        </div>
+                    </div>
+                </div>
+            </el-main>
+          </el-container>
+    </el-container>
+</div>  
 </body>
+<script src="/vue.js"></script>
 <script src="/socket.io/socket.io.js"></script>
 <script src="https://cdn.bootcss.com/jquery/3.4.1/jquery.min.js"></script>
+<script src="/el.js"></script>
 <script>
-    $(function() {
-        $('#login').click(function() {
-            var name = $('#name').val();
-            if(name == '') {
-                alert('请输入名称');
-            }else{
-                $('p').text('欢迎您： ' + name);
-                $('#name').attr("readonly",true);
+    new Vue({
+        el: '#app',
+        data() {
+            return {
+                username: '',
+                socket: io.connect('ws://127.0.0.1:8888'),
+                users: [],
+                rooms: [
+                    {name: '群聊', show: true, content: '', type: 1, li: []}
+                ]
             }
-        });
-    });
+        },
+        created() {
+            this.init();
+        },
+        beforeMount() {
+            this.socket.on('user joined', (user, index) => {
+                this.users.push(user);
+            })
+        },
+        methods: {
+            init() {
+                this.$prompt('请输入您的昵称', '提示', {
+                    confirmButtonText: '确定',
+                    cancelButtonText: '取消',
+                    showClose: false,
+                    closeOnPressEscape: false,
+                    showCancelButton: false,
+                    closeOnClickModal: false,
+                    inputErrorMessage: '昵称不可以为空',
+                    inputPattern: /\S/,
+                }).then(({ value }) => {
+                    this.username = value;
+                    //第一次登录发送登录信息
+                    this.socket.emit('new user', value);
+                    
+                    //登录之后获取当前所有用户
+                    this.socket.on('login', (user) => {
+                        this.users = user;
+                    });
+
+                    //获取私聊
+                    this.socket.on('receive private message', (msg) => {
+                        console.log( 'receive' + msg);
+                    })
+
+                    //获取群聊this
+                    this.socket.on('send public message', (res) => {
+                        this.rooms.filter(f => f.type == 1 )[0].li.push(res);
+                    })
+                }).catch(() => { });
+            },
+            clickLeft(event) {
+                var arr = document.getElementsByClassName('tab');
+                for (let i = 0; i < arr.length; i++) {
+                    arr[i].classList.remove('active');
+                }
+                event.target.classList.add('active');
+                var yname = event.target.innerText.trim();
+
+                if(this.rooms.filter(f => f.name == yname).length == 0) {
+                    this.rooms.push({
+                        name: yname,
+                        content: ''
+                    });
+                }
+
+                this.show(yname);
+
+            },
+            
+            show(name) {
+                this.rooms.forEach(i => {
+                    if(i.name == name) {
+                        i.show = true;
+                    }else{
+                        i.show = false;
+                    }
+                })
+            },
+            send(room) {
+                var content = room.content;
+                if(room.type == 1) {
+                    this.socket.emit('send public message', {name: room.name, msg: room.content});
+                }else{
+                    //发送私聊
+                    this.socket.emit('send private message', {name: room.name, msg: room.content})
+                }
+                room.content = '';//清空
+            }
+        },
+
+    })
 </script>
 </html>

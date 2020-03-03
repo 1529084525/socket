@@ -44,14 +44,14 @@
                     <!-- 群聊 -->
                     <li >
                         <div @click='clickLeft($event)' class="tab">
-                            <el-avatar></el-avatar>群聊
-                            
+                            <el-avatar></el-avatar><span class="title">群聊</span>
+                            <el-badge :value="qunCount" class="item" v-show='qunCount == 0 ? false : true'> </el-badge>
                         </div>
                     </li>
                     <li v-for='(item ) in users' >
                         <div @click='clickLeft($event)' class="tab">
                             <el-avatar src="https://cube.elemecdn.com/0/88/03b0d39583f48206768a7534e55bcpng.png"></el-avatar>
-                            {{item}}
+                            <span>{{item}}</span>
                         </div>
                     </li>
                 </ul>
@@ -85,6 +85,7 @@
         el: '#app',
         data() {
             return {
+                qunCount: 0,
                 username: '',
                 socket: io.connect('ws://127.0.0.1:8888'),
                 users: [],
@@ -127,16 +128,18 @@
                     //登录之后获取当前所有用户
                     this.socket.on('login', (user) => {
                         this.users = user;
+                        this.users.splice(this.users.indexOf(this.username), 1);
                     });
 
                     //获取私聊
                     this.socket.on('receive private message', (res) => {
-                        
                         this.rooms.filter(f => f.name == res.username)[0].li.push(res);
                     })
-
                     //获取群聊this
                     this.socket.on('send public message', (res) => {
+                        if(res.username != this.username) {
+                            this.qunCount++ ;
+                        }
                         this.rooms.filter(f => f.type == 1 )[0].li.push(res);
                     })
                 }).catch(() => { });
@@ -147,8 +150,12 @@
                     arr[i].classList.remove('active');
                 }
                 event.target.classList.add('active');
-                var yname = event.target.innerText.trim();
+                var yname = $(event.target).find('.title').html();
 
+                if(yname == '群聊') {
+                    this.qunCount = 0;
+                }
+                
                 if(this.rooms.filter(f => f.name == yname).length == 0) {
                     this.rooms.push({name: yname, content: '',  li: []});
                 }
@@ -170,6 +177,7 @@
                 var content = room.content;
                 if(room.type == 1) {
                     this.socket.emit('send public message', {name: room.name, msg: room.content, username: this.username});
+                    
                 }else{
                     //发送私聊
                     this.socket.emit('send private message', {name: room.name, msg: room.content, username: this.username});
